@@ -130,15 +130,10 @@ class BankAccount {
         return accountStatus;
     }
 
+    public static void main(String[] args) {
+        BankAccount bankAccount = new BankAccount("1234567890", "John doe", BigDecimal.valueOf(10000));
+        System.out.println(bankAccount.getBalance());
+    }
+
 }
 
-public static void main(String[] args) {
-    BankAccount bankAccount = new BankAccount();
-    bankAccount.accountNumber = "1234567890";
-    bankAccount.holderName = "John doe";
-    bankAccount.balance = 23523;
-
-    bankAccount.deposit(2000);
-    bankAccount.withdraw(5000);
-    System.out.println(bankAccount.getBalance());
-}

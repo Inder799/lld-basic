@@ -57,11 +57,11 @@ enum Status {
     public abstract boolean canTransitionTo(Status newStatus);
 }
 
-class BankAccount {
+abstract class BankAccount {
     private final String accountNumber;
     private final String holderName;
     private BigDecimal balance;
-    private Status accountStatus;
+    private Status status;
 
     public BankAccount(String accountNumber, String holderName, BigDecimal initialAmount) {
         if (initialAmount.compareTo(BigDecimal.ZERO) < 0) {
@@ -70,36 +70,30 @@ class BankAccount {
         this.accountNumber = accountNumber;
         this.holderName = holderName;
         this.balance = initialAmount;
-        this.accountStatus = Status.ACTIVE;
+        this.status = Status.ACTIVE;
     }
 
     public void deposit(BigDecimal amount) {
-        if (!accountStatus.canDeposit()) {
+        if (!status.canDeposit()) {
             throw new IllegalStateException("Account is not ACTIVE");
         }
         validateAmount(amount);
         this.balance = this.balance.add(amount);
     }
 
-    public void withdraw(BigDecimal amount) {
-        if (!accountStatus.canWithdraw()) {
+    public final void withdraw(BigDecimal amount) {
+        if (!status.canWithdraw()) {
             throw new IllegalStateException("Account is not ACTIVE");
         }
         validateAmount(amount);
 
-        if (this.balance.compareTo(amount) < 0) {
-            throw new IllegalArgumentException(
-                    "Amount entered is greater than available balance. Please add less amount");
+        if(!canWithdrawAmount(amount)) {
+            throw new IllegalArgumentException("Withdrawal exceeds allowed limit");
         }
-
         this.balance = this.balance.subtract(amount);
     }
 
-    // private void validateActive() {
-    // if (accountStatus != Status.ACTIVE) {
-    // throw new IllegalStateException("Account is not ACTIVE");
-    // }
-    // }
+    protected abstract boolean canWithdrawAmount(BigDecimal amount);
 
     private void validateAmount(BigDecimal amount) {
         if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -108,10 +102,10 @@ class BankAccount {
     }
 
     public void changeStatus(Status newStatus) {
-        if (!accountStatus.canTransitionTo(newStatus)) {
-            throw new IllegalStateException(accountStatus + " can't be changed to " + newStatus);
+        if (!status.canTransitionTo(newStatus)) {
+            throw new IllegalStateException(status + " can't be changed to " + newStatus);
         }
-        this.accountStatus = newStatus;
+        this.status = newStatus;
     }
 
     public BigDecimal getBalance() {
@@ -127,12 +121,20 @@ class BankAccount {
     }
 
     public Status getAccountStatus() {
-        return accountStatus;
+        return status;
     }
 
     public static void main(String[] args) {
-        BankAccount bankAccount = new BankAccount("1234567890", "John doe", BigDecimal.valueOf(10000));
-        System.out.println(bankAccount.getBalance());
+        BankAccount savingsAccount = new SavingsAccount("1234567890", "John doe", BigDecimal.valueOf(10000));
+        System.out.println(savingsAccount.getBalance());
+
+        BankAccount currentAccount = new CurrentAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(5000));
+        System.out.println(currentAccount.getBalance());
+
+        savingsAccount.withdraw(BigDecimal.valueOf(10000));
+        System.out.println(savingsAccount.getBalance());
+        currentAccount.withdraw(BigDecimal.valueOf(15000));
+        System.out.println(currentAccount.getBalance());
     }
 
 }

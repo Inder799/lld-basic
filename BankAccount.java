@@ -125,16 +125,11 @@ abstract class BankAccount {
     }
 
     public static void main(String[] args) {
-        BankAccount savingsAccount = new SavingsAccount("1234567890", "John doe", BigDecimal.valueOf(10000));
-        System.out.println(savingsAccount.getBalance());
-
+        InterestBearing savingsAccount = new SavingsAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(0.1));
         BankAccount currentAccount = new CurrentAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(5000));
         System.out.println(currentAccount.getBalance());
+        System.out.println(savingsAccount.calculateInterest());
 
-        savingsAccount.withdraw(BigDecimal.valueOf(10000));
-        System.out.println(savingsAccount.getBalance());
-        currentAccount.withdraw(BigDecimal.valueOf(15000));
-        System.out.println(currentAccount.getBalance());
     }
 
 }

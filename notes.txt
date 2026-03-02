@@ -1,0 +1,274 @@
+import java.util.ArrayList;
+import java.util.List;
+
+public class Bank {
+    private List<Customer> customers;
+
+    public Bank() {
+        customers = new ArrayList<>();
+    }
+
+    public void addCustomer(Customer customer) {
+        customers.add(customer);
+    }
+}
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+enum Status {
+    ACTIVE {
+        @Override
+        public boolean canWithdraw() {
+            return true;
+        }
+
+        @Override
+        public boolean canDeposit() {
+            return true;
+        }
+
+        @Override
+        public boolean canTransitionTo(Status newStatus) {
+            return newStatus == FROZEN || newStatus == CLOSED;
+        }
+    },
+    FROZEN {
+        @Override
+        public boolean canWithdraw() {
+            return false;
+        }
+
+        @Override
+        public boolean canDeposit() {
+            return false;
+        }
+
+        @Override
+        public boolean canTransitionTo(Status newStatus) {
+            return newStatus == CLOSED || newStatus == ACTIVE;
+        }
+    },
+    CLOSED {
+        @Override
+        public boolean canWithdraw() {
+            return false;
+        }
+
+        @Override
+        public boolean canDeposit() {
+            return false;
+        }
+
+        @Override
+        public boolean canTransitionTo(Status newStatus) {
+            return false;
+        }
+    };
+
+    public abstract boolean canWithdraw();
+
+    public abstract boolean canDeposit();
+
+    public abstract boolean canTransitionTo(Status newStatus);
+}
+
+abstract class BankAccount {
+    private final String accountNumber;
+    private final String holderName;
+    private BigDecimal balance;
+    private Status status;
+    private List<Transaction> transactions;
+
+    public BankAccount(String accountNumber, String holderName, BigDecimal initialAmount) {
+        if (initialAmount.compareTo(BigDecimal.ZERO) < 0) {
+            throw new IllegalArgumentException("Initial Amount can't be negative");
+        }
+        this.accountNumber = accountNumber;
+        this.holderName = holderName;
+        this.balance = initialAmount;
+        this.status = Status.ACTIVE;
+        transactions = new ArrayList<>();
+    }
+
+    public void deposit(BigDecimal amount) {
+        if (!status.canDeposit()) {
+            throw new IllegalStateException("Account is not ACTIVE");
+        }
+        validateAmount(amount);
+        this.balance = this.balance.add(amount);
+    }
+
+    public final void withdraw(BigDecimal amount) {
+        if (!status.canWithdraw()) {
+            throw new IllegalStateException("Account is not ACTIVE");
+        }
+        validateAmount(amount);
+
+        if(!canWithdrawAmount(amount)) {
+            throw new IllegalArgumentException("Withdrawal exceeds allowed limit");
+        }
+        this.balance = this.balance.subtract(amount);
+    }
+
+    protected abstract boolean canWithdrawAmount(BigDecimal amount);
+
+    private void validateAmount(BigDecimal amount) {
+        if (amount == null || amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("Amount can't be negative");
+        }
+    }
+
+    public void changeStatus(Status newStatus) {
+        if (!status.canTransitionTo(newStatus)) {
+            throw new IllegalStateException(status + " can't be changed to " + newStatus);
+        }
+        this.status = newStatus;
+    }
+
+    public void addTransaction(Transaction transaction) {
+        transactions.add(transaction);
+    }
+
+    public BigDecimal getBalance() {
+        return this.balance;
+    }
+
+    public String getAccountNumber() {
+        return this.accountNumber;
+    }
+
+    public String getHolderName() {
+        return this.holderName;
+    }
+
+    public Status getAccountStatus() {
+        return status;
+    }
+
+    public static void main(String[] args) {
+        InterestBearing savingsAccount = new SavingsAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(0.1));
+        BankAccount currentAccount = new CurrentAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(5000));
+        System.out.println(currentAccount.getBalance());
+        System.out.println(savingsAccount.calculateInterest());
+
+    }
+
+}
+
+import java.math.BigDecimal;
+
+public class Book {
+    private final String title;
+    private final String author;
+    private final String isbn;
+    private BigDecimal price;
+    private int stockQuantity;
+
+    Book(String title, String author, String isbn, BigDecimal price, int quantity) {
+        this.title = title;
+        this.author = author;
+        this.isbn = isbn;
+        this.price = price;
+        this.stockQuantity = quantity;
+    }
+
+    public void purchaseBook(int quantity) {
+        checkQuantity(quantity);
+        if(this.stockQuantity < quantity) {
+            throw new IllegalArgumentException("Available stock is less than required Quantity");
+        }
+        this.stockQuantity -= quantity;
+    }
+
+    public void restock(int quantity) {
+        checkQuantity(quantity);
+        this.stockQuantity += quantity;
+    }
+
+    private void checkQuantity(int quantity) {
+        if(quantity <= 0) {
+            throw new IllegalArgumentException("Quantity can't be less than or equal to 0");
+        }
+    }
+}
+
+import java.math.BigDecimal;
+
+public class CurrentAccount extends BankAccount{
+    private final BigDecimal overdraftLimit;
+    public CurrentAccount(String accountNumber, String holderName, BigDecimal initialAmount, BigDecimal overdraftLimit) {
+        super(accountNumber, holderName, initialAmount);
+        this.overdraftLimit = overdraftLimit;
+    }
+
+    @Override
+    protected boolean canWithdrawAmount(BigDecimal amount) {
+        BigDecimal allowed = getBalance().add(overdraftLimit);
+        return allowed.compareTo(amount) >= 0;
+    }
+}
+
+import java.math.BigDecimal;
+
+public class SavingsAccount extends BankAccount implements InterestBearing{
+
+    private final BigDecimal interestRate;
+
+    public SavingsAccount(String accountNumber, String holderName, BigDecimal initialAmount, BigDecimal interestRate) {
+        super(accountNumber, holderName, initialAmount);
+        this.interestRate = interestRate;
+    }
+
+    @Override
+    protected boolean canWithdrawAmount(BigDecimal amount) {
+        return getBalance().compareTo(amount) >= 0;
+    }
+
+    @Override
+    public BigDecimal calculateInterest() {
+        return getBalance().multiply(interestRate);
+    }
+
+    public void applyInterest() {
+        BigDecimal interest = calculateInterest();
+        deposit(interest);
+    }
+}
+
+import java.util.ArrayList;
+import java.util.List;
+
+public class Customer {
+    private final String name;
+    private List<BankAccount> accounts;
+
+    public Customer(String name) {
+        this.name = name;
+        accounts = new ArrayList<>();
+    }
+
+    public void addAccount(BankAccount account) {
+        accounts.add(account);
+    }
+}
+
+import java.math.BigDecimal;
+
+public interface InterestBearing {
+    BigDecimal calculateInterest();
+}
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+
+public class Transaction {
+    private BigDecimal amount;
+    private LocalDateTime time;
+
+
+}
+
+public class TransferService {
+}

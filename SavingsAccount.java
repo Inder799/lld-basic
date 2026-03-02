@@ -4,8 +4,8 @@ public class SavingsAccount extends BankAccount implements InterestBearing{
 
     private final BigDecimal interestRate;
 
-    public SavingsAccount(String accountNumber, String holderName, BigDecimal initialAmount, BigDecimal interestRate) {
-        super(accountNumber, holderName, initialAmount);
+    public SavingsAccount(String accountNumber, String holderName, BigDecimal initialAmount, TransactionRecorder recorder, BigDecimal interestRate) {
+        super(accountNumber, holderName, initialAmount, recorder);
         this.interestRate = interestRate;
     }
 

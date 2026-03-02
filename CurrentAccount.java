@@ -1,9 +1,10 @@
 import java.math.BigDecimal;
+import java.util.concurrent.TransferQueue;
 
 public class CurrentAccount extends BankAccount{
     private final BigDecimal overdraftLimit;
-    public CurrentAccount(String accountNumber, String holderName, BigDecimal initialAmount, BigDecimal overdraftLimit) {
-        super(accountNumber, holderName, initialAmount);
+    public CurrentAccount(String accountNumber, String holderName, BigDecimal initialAmount, TransactionRecorder recorder, BigDecimal overdraftLimit) {
+        super(accountNumber, holderName, initialAmount, recorder);
         this.overdraftLimit = overdraftLimit;
     }
 

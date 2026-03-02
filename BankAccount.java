@@ -1,4 +1,6 @@
 import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
 
 enum Status {
     ACTIVE {
@@ -62,8 +64,9 @@ abstract class BankAccount {
     private final String holderName;
     private BigDecimal balance;
     private Status status;
+    private final TransactionRecorder recorder;
 
-    public BankAccount(String accountNumber, String holderName, BigDecimal initialAmount) {
+    public BankAccount(String accountNumber, String holderName, BigDecimal initialAmount, TransactionRecorder recorder) {
         if (initialAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Initial Amount can't be negative");
         }
@@ -71,6 +74,7 @@ abstract class BankAccount {
         this.holderName = holderName;
         this.balance = initialAmount;
         this.status = Status.ACTIVE;
+        this.recorder = recorder;
     }
 
     public void deposit(BigDecimal amount) {
@@ -78,7 +82,8 @@ abstract class BankAccount {
             throw new IllegalStateException("Account is not ACTIVE");
         }
         validateAmount(amount);
-        this.balance = this.balance.add(amount);
+        balance = balance.add(amount);
+        recorder.record(this, amount);
     }
 
     public final void withdraw(BigDecimal amount) {
@@ -90,7 +95,8 @@ abstract class BankAccount {
         if(!canWithdrawAmount(amount)) {
             throw new IllegalArgumentException("Withdrawal exceeds allowed limit");
         }
-        this.balance = this.balance.subtract(amount);
+        balance = balance.subtract(amount);
+        recorder.record(this, amount.negate());
     }
 
     protected abstract boolean canWithdrawAmount(BigDecimal amount);
@@ -122,14 +128,6 @@ abstract class BankAccount {
 
     public Status getAccountStatus() {
         return status;
-    }
-
-    public static void main(String[] args) {
-        InterestBearing savingsAccount = new SavingsAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(0.1));
-        BankAccount currentAccount = new CurrentAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(5000));
-        System.out.println(currentAccount.getBalance());
-        System.out.println(savingsAccount.calculateInterest());
-
     }
 
 }

@@ -74,14 +74,75 @@ enum Status {
     public abstract boolean canTransitionTo(Status newStatus);
 }
 
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.List;
+
+enum Status {
+    ACTIVE {
+        @Override
+        public boolean canWithdraw() {
+            return true;
+        }
+
+        @Override
+        public boolean canDeposit() {
+            return true;
+        }
+
+        @Override
+        public boolean canTransitionTo(Status newStatus) {
+            return newStatus == FROZEN || newStatus == CLOSED;
+        }
+    },
+    FROZEN {
+        @Override
+        public boolean canWithdraw() {
+            return false;
+        }
+
+        @Override
+        public boolean canDeposit() {
+            return false;
+        }
+
+        @Override
+        public boolean canTransitionTo(Status newStatus) {
+            return newStatus == CLOSED || newStatus == ACTIVE;
+        }
+    },
+    CLOSED {
+        @Override
+        public boolean canWithdraw() {
+            return false;
+        }
+
+        @Override
+        public boolean canDeposit() {
+            return false;
+        }
+
+        @Override
+        public boolean canTransitionTo(Status newStatus) {
+            return false;
+        }
+    };
+
+    public abstract boolean canWithdraw();
+
+    public abstract boolean canDeposit();
+
+    public abstract boolean canTransitionTo(Status newStatus);
+}
+
 abstract class BankAccount {
     private final String accountNumber;
     private final String holderName;
     private BigDecimal balance;
     private Status status;
-    private List<Transaction> transactions;
+    private final TransactionRecorder recorder;
 
-    public BankAccount(String accountNumber, String holderName, BigDecimal initialAmount) {
+    public BankAccount(String accountNumber, String holderName, BigDecimal initialAmount, TransactionRecorder recorder) {
         if (initialAmount.compareTo(BigDecimal.ZERO) < 0) {
             throw new IllegalArgumentException("Initial Amount can't be negative");
         }
@@ -89,7 +150,7 @@ abstract class BankAccount {
         this.holderName = holderName;
         this.balance = initialAmount;
         this.status = Status.ACTIVE;
-        transactions = new ArrayList<>();
+        this.recorder = recorder;
     }
 
     public void deposit(BigDecimal amount) {
@@ -97,7 +158,8 @@ abstract class BankAccount {
             throw new IllegalStateException("Account is not ACTIVE");
         }
         validateAmount(amount);
-        this.balance = this.balance.add(amount);
+        balance = balance.add(amount);
+        recorder.record(this, amount);
     }
 
     public final void withdraw(BigDecimal amount) {
@@ -109,7 +171,8 @@ abstract class BankAccount {
         if(!canWithdrawAmount(amount)) {
             throw new IllegalArgumentException("Withdrawal exceeds allowed limit");
         }
-        this.balance = this.balance.subtract(amount);
+        balance = balance.subtract(amount);
+        recorder.record(this, amount.negate());
     }
 
     protected abstract boolean canWithdrawAmount(BigDecimal amount);
@@ -125,10 +188,6 @@ abstract class BankAccount {
             throw new IllegalStateException(status + " can't be changed to " + newStatus);
         }
         this.status = newStatus;
-    }
-
-    public void addTransaction(Transaction transaction) {
-        transactions.add(transaction);
     }
 
     public BigDecimal getBalance() {
@@ -147,15 +206,8 @@ abstract class BankAccount {
         return status;
     }
 
-    public static void main(String[] args) {
-        InterestBearing savingsAccount = new SavingsAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(0.1));
-        BankAccount currentAccount = new CurrentAccount("1234567890", "John doe", BigDecimal.valueOf(10000), BigDecimal.valueOf(5000));
-        System.out.println(currentAccount.getBalance());
-        System.out.println(savingsAccount.calculateInterest());
-
-    }
-
 }
+
 
 import java.math.BigDecimal;
 
@@ -272,3 +324,72 @@ public class Transaction {
 
 public class TransferService {
 }
+
+import java.math.BigDecimal;
+
+public class AccountFactory {
+
+    public static BankAccount createAccount(AccountType type, String accountNumber, String holderName, BigDecimal initialAmount, TransactionRecorder recorder, BigDecimal value) {
+
+        switch (type) {
+            case SAVINGS:
+                return new SavingsAccount(accountNumber, holderName, initialAmount, recorder, value);
+            case CURRENT:
+                return new CurrentAccount(accountNumber, holderName, initialAmount, recorder, value);
+            default:
+                throw new IllegalArgumentException("Invalid Argument Type");
+        }
+
+    }
+}
+
+public enum AccountType {
+    SAVINGS,
+    CURRENT
+}
+
+import java.math.BigDecimal;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+public class InMemoryTransactionRecorder implements TransactionRecorder {
+
+    private final Map<String, List<Transaction>> storage = new HashMap<>();
+
+    @Override
+    public void record(BankAccount account, BigDecimal amount) {
+        storage
+                .computeIfAbsent(account.getAccountNumber(), k -> new ArrayList<>())
+                .add(new Transaction(amount));
+    }
+
+    public List<Transaction> getAllTransaction(String accountNumber) {
+        return storage.getOrDefault(accountNumber, List.of());
+    }
+}
+
+import java.math.BigDecimal;
+
+public interface TransactionRecorder {
+    void record(BankAccount account, BigDecimal amount);
+}
+
+import java.math.BigDecimal;
+
+public class BankingApplication {
+    public static void main(String[] args) {
+        TransactionRecorder recorder = new InMemoryTransactionRecorder();
+
+        InterestBearing savingsAccount = AccountFactory.createAccount(AccountType.SAVINGS, "1234567890", "John doe", BigDecimal.valueOf(10000), recorder, BigDecimal.valueOf(0.1));
+        BankAccount currentAccount = AccountFactory.createAccount(AccountType.CURRENT, "1234567890", "John doe", BigDecimal.valueOf(10000), recorder, BigDecimal.valueOf(5000));
+//        InterestBearing savingsAccount = new SavingsAccount("1234567890", "John doe", BigDecimal.valueOf(10000), recorder, BigDecimal.valueOf(0.1));
+//        BankAccount currentAccount = new CurrentAccount("1234567890", "John doe", BigDecimal.valueOf(10000), recorder, BigDecimal.valueOf(5000));
+        System.out.println(currentAccount.getBalance());
+        System.out.println(savingsAccount.calculateInterest());
+
+    }
+}
+
+// Implementing Factory pattern is causing InterestBearing interface to fail what is the best way to use Factory pattern and how does it make sense as other patterns or principles are contradicting each other
